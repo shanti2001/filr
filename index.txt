@@ -1,0 +1,73 @@
+const { compile } = require("ejs");
+const express  = require("express");
+const app = express();
+const mongoose = require("mongoose");
+const multer = require("multer");
+// app.use(express.static('view'));
+app.use(express.urlencoded({extended: true}));
+app.use(express.json());
+const fileSchema = require("./model/file");
+const path = require("path");
+app.use(express.static(path.join(__dirname, "./upload")));
+
+mongoose.connect("mongodb+srv://shantinath1185be20:LjyeRFCL0jjLI0aj@cluster0.6c3bwjo.mongodb.net/?retryWrites=true&w=majority")
+.then(res => console.log("Database is connected...")).catch(err => console.log(err));
+
+const mstorage = multer.diskStorage({
+    destination:function(res,file,cb){
+        return cb(null,"./upload")
+    },
+    filename:function(res,file,cb){
+        return cb(null,`${Date.now()}-${file.originalname}`)
+    },
+
+})
+
+const ffilter = (req,file,cb)=>{
+    if(file.mimetype.split('/')[1]==='jpg'){
+        return cb(null,true)
+    }
+    else{
+        return cb(new Error('only jpg allowed'),false);
+    }
+}
+
+const upload = multer({storage:mstorage});
+
+app.set('view engine', 'ejs');
+
+app.use(express.json());
+
+app.get("/boy", (req, res)=>{
+    res.render("index");
+});
+
+app.get("/display", async(req, res)=>{
+   try{
+      const imgFile = await fileSchema.find();
+      res.render("display", {file: imgFile});
+   }
+   catch(error)
+    {
+      console.log(error);
+    }
+});
+
+app.post("/upload",upload.single('file_name'),async(req,res)=>{
+    //console.log(req.file)
+    const newSchema = new fileSchema({
+        img: req.file.filename
+    });
+    try{
+       await newSchema.save();
+       res.redirect("/display");
+    }catch(error)
+    {
+      console.log(error);
+    }
+    
+})
+app.listen(3000, ()=>{
+    console.log(`server is running port ${3000}`);
+});
+
